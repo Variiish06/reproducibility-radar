@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: radar
+      POSTGRES_USER: radar
+      POSTGRES_PASSWORD: changeme
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U radar"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql://radar:changeme@postgres:5432/radar
+    volumes:
+      # Allow orchestrator to spawn sibling Docker containers on the host
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persist log blobs between restarts
+      - orchestrator_logs:/app/logs
+    ports:
+      - "8080:8080"   # optional internal API / health endpoint
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      # Next.js public API base — points at the orchestrator
+      NEXT_PUBLIC_API_URL: http://orchestrator:8080
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+  orchestrator_logs:
