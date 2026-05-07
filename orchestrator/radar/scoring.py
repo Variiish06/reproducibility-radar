@@ -5,7 +5,7 @@ import enum
 from dataclasses import dataclass
 
 
-class FailureCategory(str, enum.Enum):
+class FailureCategory(enum.StrEnum):
     env_python_version = "env_python_version"
     env_missing_dep = "env_missing_dep"
     env_version_conflict = "env_version_conflict"
